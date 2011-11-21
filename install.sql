@@ -2,7 +2,7 @@ DROP TABLE IF EXISTS wcf1_acl_option;
 CREATE TABLE wcf1_acl_option (
 	optionID INT(10) NOT NULL AUTO_INCREMENT PRIMARY KEY,
 	packageID INT(10) NOT NULL,
-	objectTypeID NOT NULL,
+	objectTypeID INT(10) NOT NULL,
 	optionName VARCHAR(255) NOT NULL,
 	UNIQUE KEY (packageID, objectTypeID, optionName)
 );
