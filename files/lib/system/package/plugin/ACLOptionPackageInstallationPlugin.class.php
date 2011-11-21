@@ -54,15 +54,15 @@ class ACLOptionPackageInstallationPlugin extends AbstractXMLPackageInstallationP
 		$statement2 = WCF::getDB()->prepareStatement($sql);
 		
 		foreach ($items as $item) {
-			$statement1->execute(array($this->installation->getPackageID(), $data['elements']['objecttype']));
+			$statement1->execute(array($this->installation->getPackageID(), $item['elements']['objecttype']));
 			$row = $statement1->fetchArray();
-			if (empty($row['objectTypeID'])) throw new SystemException("unknown object type '".$data['elements']['objecttype']."' given");
+			if (empty($row['objectTypeID'])) throw new SystemException("unknown object type '".$item['elements']['objecttype']."' given");
 			$objectTypeID = $row['objectTypeID'];
 			
 			$statement2->execute(array(
 				$this->installation->getPackageID(),
 				$objectTypeID,
-				$data['attributes']['name']
+				$item['attributes']['name']
 			));
 		}
 	}
@@ -108,7 +108,7 @@ class ACLOptionPackageInstallationPlugin extends AbstractXMLPackageInstallationP
 		$parameters = array(
 			$this->installation->getPackageID(),
 			$data['objectTypeID'],
-			$dara['optionName']
+			$data['optionName']
 		);
 		
 		return array(
