@@ -1,16 +1,69 @@
-// DEBUG ONLY -- REMOVE LATER
-if (!WCF) var WCF = {};
-
+/**
+ * Namespace for ACL
+ */
 WCF.ACL = {};
 
+/**
+ * ACL support for WCF
+ * 
+ * @author	Alexander Ebert
+ * @copyright	2001-2011 WoltLab GmbH
+ * @license	GNU Lesser General Public License <http://opensource.org/licenses/lgpl-license.php>
+ */
 WCF.ACL.List = function(containerSelector, objectTypeID, objectIDs) { this.init(containerSelector, objectTypeID, objectIDs); };
 WCF.ACL.List.prototype = {
-	_containers: { },
+	/**
+	 * ACL container
+	 * @var	jQuery
+	 */
+	_container: null,
+
+	/**
+	 * list of ACL container elements
+	 * @var	object
+	 */
 	_containerElements: { },
+
+	/**
+	 * list of object ids
+	 * @var	array
+	 */
 	_objectIDs: [ ],
+
+	/**
+	 * object type id
+	 * @var	integer
+	 */
 	_objectTypeID: null,
+
+	/**
+	 * list of available ACL options
+	 * @var	object
+	 */
+	_options: { },
+
+	/**
+	 * action proxy
+	 * @var	WCF.Action.Proxy
+	 */
 	_proxy: null,
 
+	/**
+	 * list of ACL settings
+	 * @var	object
+	 */
+	_values: {
+		group: { },
+		user: { }
+	},
+
+	/**
+	 * Initializes the ACL configuration.
+	 * 
+	 * @param	string		containerSelector
+	 * @param	integer		objectTypeID
+	 * @param	array		objectIDs
+	 */
 	init: function(containerSelector, objectTypeID, objectIDs) {
 		this._objectIDs = objectIDs;
 		this._objectTypeID = objectTypeID;
@@ -21,32 +74,35 @@ WCF.ACL.List.prototype = {
 		if (!this._objectIDs) {
 			this._objectIDs = [ ];
 		}
+		
+		// bind hidden container
+		this._container = $(containerSelector).hide().addClass('aclContainer');
+		
+		// insert container elements
+		var $elementContainer = this._container.children('dd');
+		var $aclList = $('<ul class="aclList" />').appendTo($elementContainer);
+		var $searchInput = $('<input type="search" class="aclSearchInput" />').appendTo($elementContainer);
+		var $permissionList = $('<ul class="aclPermissionList" />').hide().appendTo($elementContainer);
+		
+		// set elements
+		this._containerElements = {
+			aclList: $aclList,
+			permissionList: $permissionList,
+			searchInput: $searchInput
+		};
 
-		// fetch containers
-		$(containerSelector).each($.proxy(function(index, container) {
-			var $container = $(container);
-			var $containerID = $container.wcfIdentify();
-
-			// bind hidden container
-			this._containers[$containerID] = $container.hide().addClass('aclContainer');
-
-			// insert container elements
-			var $elementContainer = $container.children('dd');
-			var $aclList = $('<ul class="aclList" />').appendTo($elementContainer);
-			var $searchInput = $('<input type="search" class="aclSearchInput" />').appendTo($elementContainer);
-			var $permissionList = $('<ul class="aclPermissionList" />').hide().appendTo($elementContainer);
-
-			// set elements
-			this._containerElements[$containerID] = {
-				aclList: $aclList,
-				permissionList: $permissionList,
-				searchInput: $searchInput
-			};
-		}, this));
+		// prepare search input
+		new WCF.Search.User($searchInput, $.proxy(this.addObject, this), true);
+		
+		// bind event listener for submit
+		this._container.parents('form:eq(0)').submit($.proxy(this.submit, this));
 
 		this._loadACL();
 	},
 
+	/**
+	 * Loads current ACL configuration.
+	 */
 	_loadACL: function() {
 		this._proxy.setOption('data',  {
 			actionName: 'loadAll',
@@ -61,7 +117,154 @@ WCF.ACL.List.prototype = {
 		this._proxy.sendRequest();
 	},
 
+	/**
+	 * Adds a new object to acl list.
+	 * 
+	 * @param	object		data
+	 */
+	addObject: function(data) {
+		var $listItem = $('<li><img src="' + RELATIVE_WCF_DIR + 'icon/user' + ((data.type == 'group') ? 's' : '') +  '1.svg" alt="" /> <span>' + data.label + '</span></li>').appendTo(this._containerElements.aclList);
+		$listItem.data('objectID', data.objectID).data('type', data.type).click($.proxy(this._click, this));
+
+		this._containerElements.aclList.children('li').removeClass('active');
+		$listItem.addClass('active');
+
+		this._setupPermissions(data.type, data.objectID);
+	},
+
+	/**
+	 * Parses current ACL configuration.
+	 * 
+	 * @param	object		data
+	 * @param	string		textStatus
+	 * @param	jQuery		jqXHR
+	 */
 	_success: function(data, textStatus, jqXHR) {
-		console.debug(data);
+		if (!$.getLength(data.returnValues.options)) {
+			return;
+		}
+
+		// set options
+		for (var $optionID in data.returnValues.options) {
+			var $option = data.returnValues.options[$optionID];
+
+			var $listItem = $('<li><span>' + $option.label +  '</span></li>').data('optionID', $optionID).data('optionName', $option.optionName).appendTo(this._containerElements.permissionList);
+			var $grantPermission = $('<input type="checkbox" id="grant' + $optionID + '" />').wrap('<label for="grant' + $optionID + '" />').appendTo($listItem);
+			var $denyPermission = $('<input type="checkbox" id="deny' + $optionID + '" />').wrap('<label for="deny' + $optionID + '" />').appendTo($listItem);
+
+			$grantPermission.data('type', 'grant').data('optionID', $optionID).change($.proxy(this._change, this));
+			$denyPermission.data('type', 'deny').data('optionID', $optionID).change($.proxy(this._change, this));
+		}
+
+		// set groups
+		// ...
+
+		// set user
+		// ...
+
+		this._container.show();
+	},
+
+	/**
+	 * Prepares permission list for a specific object.
+	 * 
+	 * @param	object		event
+	 */
+	_click: function(event) {
+		this._containerElements.aclList.children('li').removeClass('active');
+		var $listItem  = $(event.currentTarget).addClass('active');
+
+		this._savePermissions();
+		this._setupPermissions($listItem.data('type'), $listItem.data('objectID'));
+	},
+
+	/**
+	 * Toggles between deny and grant.
+	 * 
+	 * @param	object		event
+	 */
+	_change: function(event) {
+		var $checkbox = $(event.currentTarget);
+		var $optionID = $checkbox.data('optionID');
+		var $type = $checkbox.data('type');
+		
+		if ($checkbox.is(':checked')) {
+			if ($type === 'deny') {
+				$('#grant' + $optionID).removeAttr('checked');
+			}
+			else {
+				$('#deny' + $optionID).removeAttr('checked');
+			}
+		}
+	},
+
+	/**
+	 * Setups permission input for given object.
+	 * 
+	 * @param	string		type
+	 * @param	integer		objectID
+	 */
+	_setupPermissions: function(type, objectID) {
+		this._containerElements.permissionList.show();
+	},
+
+	/**
+	 * Saves currently set permissions.
+	 */
+	_savePermissions: function() {
+		if (this._containerElements.permissionList.is(':hidden')) {
+			return;
+		}
+
+		// get active object
+		var $activeObject = this._containerElements.aclList.find('li.active');
+		var $objectID = $activeObject.data('objectID');
+		var $type = $activeObject.data('type');
+
+		var self = this;
+		this._containerElements.permissionList.find("input[type='checkbox']").each(function(index, checkbox) {
+			var $checkbox = $(checkbox);
+			if ($checkbox.is(':checked')) {
+				var $optionValue = ($checkbox.data('type') === 'deny') ? 0 : 1;
+				var $optionID = $checkbox.data('optionID');
+				
+				if (!self._values[$type][$objectID]) {
+					self._values[$type][$objectID] = { };
+				}
+
+				self._values[$type][$objectID][$optionID] = $optionValue;
+			}
+		});
+	},
+
+	/**
+	 * Prepares ACL values on submit.
+	 * 
+	 * @param	object		event
+	 */
+	submit: function(event) {
+		this._savePermissions();
+
+		this._save('group');
+		this._save('user');
+	},
+
+	/**
+	 * Inserts hidden form elements for each value.
+	 *
+	 * @param	string		$type
+	 */
+	_save: function($type) {
+		if ($.getLength(this._values[$type])) {
+			var $form = this._container.parents('form:eq(0)');
+
+			for (var $objectID in this._values[$type]) {
+				var $object = this._values[$type][$objectID];
+
+				for (var $optionID in $object) {
+					$('<input type="hidden" name="aclValues[' + $type + '][' + $objectID + '][' + $optionID + ']" value="' + $object[$optionID] + '" />').appendTo($form);
+				}
+			}
+		}
 	}
 };
