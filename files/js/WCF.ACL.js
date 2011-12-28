@@ -161,7 +161,7 @@ WCF.ACL.List.prototype = {
 
 		// set user
 		// ...
-
+		
 		this._container.show();
 	},
 
@@ -171,10 +171,19 @@ WCF.ACL.List.prototype = {
 	 * @param	object		event
 	 */
 	_click: function(event) {
-		this._containerElements.aclList.children('li').removeClass('active');
-		var $listItem  = $(event.currentTarget).addClass('active');
-
+		var $listItem  = $(event.currentTarget);
+		if ($listItem.hasClass('active')) {
+			return;
+		}
+		
+		// save previous permissions
 		this._savePermissions();
+		
+		// switch active item
+		this._containerElements.aclList.children('li').removeClass('active');
+		$listItem.addClass('active');
+		
+		// apply permissions for current item
 		this._setupPermissions($listItem.data('type'), $listItem.data('objectID'));
 	},
 
@@ -205,6 +214,19 @@ WCF.ACL.List.prototype = {
 	 * @param	integer		objectID
 	 */
 	_setupPermissions: function(type, objectID) {
+		// use stored permissions if applicable
+		if (this._values[type] && this._values[type][objectID]) {
+			for (var $optionID in this._values[type][objectID]) {
+				if (this._values[type][objectID][$optionID]) {
+					$('#grant' + $optionID).attr('checked', 'checked');
+				}
+				else {
+					$('#deny' + $optionID).attr('checked', 'checked');
+				}
+			}
+		}
+		
+		// show permissions
 		this._containerElements.permissionList.show();
 	},
 
@@ -232,7 +254,11 @@ WCF.ACL.List.prototype = {
 					self._values[$type][$objectID] = { };
 				}
 
+				// store value
 				self._values[$type][$objectID][$optionID] = $optionValue;
+				
+				// reset value afterwards
+				$checkbox.removeAttr('checked');
 			}
 		});
 	},

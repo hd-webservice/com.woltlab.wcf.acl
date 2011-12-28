@@ -24,10 +24,18 @@ class ACLOptionAction extends AbstractDatabaseObjectAction {
 	public function validateLoadAll() { }
 	
 	public function loadAll() {
-		$data = array();
+		$data = array(
+			'options' => array(),
+			'values' => array(
+				'group' => array(),
+				'user' => array()
+			)
+		);
 		
 		// get acl options for this object type
 		$optionList = new ACLOptionList();
+		$optionList->sqlSelects = "package.package";
+		$optionList->sqlJoins = "LEFT JOIN wcf".WCF_N."_package package ON (package.packageID = acl_option.packageID)";
 		$optionList->getConditionBuilder()->add("acl_option.objectTypeID = ?", array($this->parameters['data']['objectTypeID']));
 		$optionList->getConditionBuilder()->add("acl_option.packageID IN (?)", array(PackageDependencyHandler::getDependencies()));
 		$optionList->sqlLimit = 0;
@@ -39,9 +47,9 @@ class ACLOptionAction extends AbstractDatabaseObjectAction {
 			foreach ($aclOptions as $aclOption) {
 				$aclOptionIDs[] = $aclOption->optionID;
 				
-				$data[$aclOption->optionID] = array(
-					'optionName' => $aclOption->optionName,
-					'values' => array()
+				$data['options'][$aclOption->optionID] = array(
+					'label' => WCF::getLanguage()->get('wcf.acl.option.' . $aclOption->package . '.' . $aclOption->optionName),
+					'optionName' => $aclOption->optionName
 				);
 			}
 			
@@ -68,17 +76,11 @@ class ACLOptionAction extends AbstractDatabaseObjectAction {
 		$statement->execute($conditions->getParameters());
 		
 		while ($row = $statement->fetchArray()) {
-			if (!isset($data[$row['optionID']]['values'][$row['objectID']])) {
-				$data[$row['optionID']]['values'][$row['objectID']] = array(
-					'group' => array(),
-					'user' => array()
-				);
+			if (!isset($data['values'][$type][$row[$type.'ID']])) {
+				$data['values'][$type][$row[$type.'ID']] = array();
 			}
 			
-			$data[$row['optionID']]['values'][$row['objectID']][$type][] = array(
-				$type.'ID' => $row[$type.'ID'],
-				'optionValue' => $row['optionValue']
-			);
+			$data['values'][$type][$row[$type.'ID']][$row['optionID']] = $row['optionValue'];
 		}
 	}
 }

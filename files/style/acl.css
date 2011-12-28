@@ -1,0 +1,54 @@
+ul.aclList,
+ul.aclPermissionList {
+	border: 1px solid rgb(192, 192, 192);
+	height: 100px;
+	overflow: scroll-y;
+}
+
+ul.aclList {
+	margin-bottom: 7px;
+}
+
+ul.aclList li {
+	cursor: pointer;
+}
+
+ul.aclList li,
+ul.aclPermissionList li {
+	display: block;
+	padding: 3px;
+}
+
+ul.aclList li:hover,
+ul.aclList li.active:hover {
+	background-color: rgb(204, 204, 204);
+}
+
+ul.aclList li.active,
+ul.aclPermissionList li:hover {
+	background-color: rgb(224, 224, 224);
+}
+
+ul.aclPermissionList {
+	height: 200px;
+	margin-top: 7px;
+	text-align: right;
+}
+
+ul.aclPermissionList li span {
+	float: left;
+}
+
+ul.aclPermissionList li input {
+	padding: 0 5%;
+}
+
+/*
+ * The declaration for dropdown belongs to WCF to avoid strange
+ * bugs with SVG-rendering by Opera :/ Move it please!
+ */
+.aclList li img,
+.dropdown li img {
+	height: 16px;
+	width: 16px;
+}
