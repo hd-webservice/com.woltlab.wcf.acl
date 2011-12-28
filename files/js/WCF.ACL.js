@@ -95,9 +95,32 @@ WCF.ACL.List.prototype = {
 		new WCF.Search.User($searchInput, $.proxy(this.addObject, this), true);
 		
 		// bind event listener for submit
-		this._container.parents('form:eq(0)').submit($.proxy(this.submit, this));
+		var $form = this._container.parents('form:eq(0)');
+		$form.submit($.proxy(this.submit, this));
+		
+		// reset ACL on click
+		var $resetButton = $form.find('input[type=reset]:eq(0)');
+		if ($resetButton.length) {
+			$resetButton.click($.proxy(this._reset, this));
+		}
 
 		this._loadACL();
+	},
+	
+	/**
+	 * Restores the original ACL state.
+	 */
+	_reset: function() {
+		// reset stored values
+		this._values = {
+			group: { },
+			user: { }
+		};
+		
+		// remove entries
+		this._containerElements.aclList.empty();
+		this._containerElements.searchInput.val('');
+		this._containerElements.permissionList.empty().hide();
 	},
 
 	/**
@@ -125,11 +148,23 @@ WCF.ACL.List.prototype = {
 	addObject: function(data) {
 		var $listItem = $('<li><img src="' + RELATIVE_WCF_DIR + 'icon/user' + ((data.type == 'group') ? 's' : '') +  '1.svg" alt="" /> <span>' + data.label + '</span></li>').appendTo(this._containerElements.aclList);
 		$listItem.data('objectID', data.objectID).data('type', data.type).click($.proxy(this._click, this));
+		
+		var $removeItem = $('<img src="' + RELATIVE_WCF_DIR + 'icon/delete1.svg" alt="" />').click($.proxy(this._removeItem, this)).appendTo($listItem);
 
 		this._containerElements.aclList.children('li').removeClass('active');
 		$listItem.addClass('active');
 
 		this._setupPermissions(data.type, data.objectID);
+	},
+	
+	/**
+	 * Removes an item from list.
+	 * 
+	 * @param	object		event
+	 */
+	_removeItem: function(event) {
+		// TODO: determine list item and remove it (including stored data)
+		console.debug('IMPLEMENT ME!');
 	},
 
 	/**
